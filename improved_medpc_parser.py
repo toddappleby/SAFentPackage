@@ -358,6 +358,7 @@ class MedPCDataParser:
             subject = row['subject']
             phase = row['phase']
             group = row['group']
+            filename = row['filename']  # Make sure we get filename from row
             
             timestamps = row.get('timestamps', [])
             responses = row.get('responses', [])
@@ -388,6 +389,7 @@ class MedPCDataParser:
                     'subject': subject,
                     'phase': phase,
                     'group': group,
+                    'filename': filename,  # Add filename to each row
                     'time_seconds': time,
                     'time_minutes': time / 60,
                     'response_code': resp,
