@@ -424,54 +424,6 @@ class EnhancedMedPCAnalyzer(MedPCAnalyzer):
         else:
             segment_df = self.time_segment_df[segment_key]
         
-        # Ensure metrics exist in the dataframe
-        available_columns = segment_df.columns
-        
-        # Print available columns for debugging
-        print(f"Available columns in segment data: {available_columns}")
-        
-        # Default metrics
-        if metrics is None:
-            metrics = []
-            # Check which metrics are available
-            for metric in ['total_active_presses', 'active_lever_presses', 
-                           'total_inactive_presses', 'inactive_lever_presses',
-                           'total_reinforcers', 'reinforcers']:
-                if metric in available_columns:
-                    metrics.append(metric)
-                    print(f"Using available metric: {metric}")
-            
-            if not metrics:
-                print(f"Error: No valid metrics found in time segment data!")
-                print(f"Available columns: {available_columns}")
-                return
-        else:
-            # Filter provided metrics to only those available
-            filtered_metrics = [m for m in metrics if m in available_columns]
-            if not filtered_metrics:
-                print(f"Error: None of the requested metrics {metrics} found in data!")
-                print(f"Available columns: {available_columns}")
-                return
-            metrics = filtered_metrics
-        """
-        Plot metrics from a specific time segment analysis.
-        
-        Parameters:
-        -----------
-        segment_key : str
-            Key identifying the time segment (format: "start_end")
-        metrics : list
-            List of metrics to plot. If None, default metrics are used.
-        group_by_phase : bool
-            If True, group by phase for plotting
-        """
-        # Check if segment data exists
-        if segment_key not in self.time_segment_df:
-            start_min, end_min = map(int, segment_key.split('_'))
-            segment_df = self.analyze_time_segment(start_min, end_min)
-        else:
-            segment_df = self.time_segment_df[segment_key]
-        
         # Default metrics
         if metrics is None:
             metrics = [

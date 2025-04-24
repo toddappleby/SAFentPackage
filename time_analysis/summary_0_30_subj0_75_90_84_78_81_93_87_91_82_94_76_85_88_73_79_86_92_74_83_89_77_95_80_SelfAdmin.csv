@@ -1,0 +1,2 @@
+phase,mean_active_presses,std_active_presses,mean_inactive_presses,std_inactive_presses,mean_reinforcers,std_reinforcers,sample_size,sem_active_presses,sem_inactive_presses,sem_reinforcers
+SelfAdmin,7.864217252396166,5.908293623909182,6.277955271565495,5.553180822951488,77.4408945686901,75.5072268127923,626,0.2361429061367956,0.22194974408994328,3.017875736870627

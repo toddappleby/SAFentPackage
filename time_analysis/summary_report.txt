@@ -1,0 +1,60 @@
+MedPC Time-Based Analysis Summary Report
+==================================================
+
+Number of files processed: 629
+--------------------------------------------------
+
+Subjects: 0, 75, 81, 78, 90, 93, 87, 84, 82, 79, 76, 73, 88, 91, 94, 85, 74, 80, 95, 77, 92, 86, 89, 83
+Phases: SelfAdmin
+--------------------------------------------------
+
+Time Segment: 0-30min
+------------------------------
+
+Phase: SelfAdmin
+  Subjects: 93, 82, 86, 87, 0, 95, 88, 79, 76, 91, 73, 83, 84, 75, 85, 74, 78, 94, 89, 81, 80, 92, 77, 90
+  Active Lever Presses: 7.86 ± 0.24 SEM
+  Inactive Lever Presses: 6.28 ± 0.22 SEM
+  Reinforcers: 77.44 ± 3.02 SEM
+  Active:Inactive Ratio: 1.25
+
+==================================================
+
+Time Segment: 0-60min
+------------------------------
+
+Phase: SelfAdmin
+  Subjects: 84, 79, 89, 77, 93, 83, 85, 80, 0, 74, 88, 78, 95, 86, 82, 81, 94, 91, 76, 87, 75, 73, 92, 90
+  Active Lever Presses: 13.96 ± 0.42 SEM
+  Inactive Lever Presses: 10.86 ± 0.42 SEM
+  Reinforcers: 144.70 ± 6.93 SEM
+  Active:Inactive Ratio: 1.29
+
+==================================================
+
+Plots Created:
+------------------------------
+- individual_subjects_0_30_subj0_75_90_84_78_81_93_87_91_82_94_76_85_88_73_79_86_92_74_83_89_77_95_80_SelfAdmin_total_active_presses.png
+- individual_subjects_0_30_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin_total_active_presses.png
+- individual_subjects_0_30_subj0_81_90_78_84_75_87_93_94_73_85_82_88_76_79_91_95_83_86_74_80_89_77_92_SelfAdmin_total_active_presses.png
+- individual_subjects_0_30_subj0_84_81_87_78_93_90_75_82_73_88_91_85_76_94_79_95_77_89_92_83_86_80_74_SelfAdmin_total_active_presses.png
+- individual_subjects_0_60_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin_total_active_presses.png
+- phase_comparison_0_30_subj0_75_90_84_78_81_93_87_91_82_94_76_85_88_73_79_86_92_74_83_89_77_95_80_SelfAdmin_total_active_presses.png
+- phase_comparison_0_30_subj0_75_90_84_78_81_93_87_91_82_94_76_85_88_73_79_86_92_74_83_89_77_95_80_SelfAdmin_total_inactive_presses.png
+- phase_comparison_0_30_subj0_75_90_84_78_81_93_87_91_82_94_76_85_88_73_79_86_92_74_83_89_77_95_80_SelfAdmin_total_reinforcers.png
+- phase_comparison_0_30_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin_total_active_presses.png
+- phase_comparison_0_30_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin_total_inactive_presses.png
+- phase_comparison_0_30_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin_total_reinforcers.png
+- phase_comparison_0_30_subj0_81_90_78_84_75_87_93_94_73_85_82_88_76_79_91_95_83_86_74_80_89_77_92_SelfAdmin_total_active_presses.png
+- phase_comparison_0_30_subj0_81_90_78_84_75_87_93_94_73_85_82_88_76_79_91_95_83_86_74_80_89_77_92_SelfAdmin_total_inactive_presses.png
+- phase_comparison_0_30_subj0_81_90_78_84_75_87_93_94_73_85_82_88_76_79_91_95_83_86_74_80_89_77_92_SelfAdmin_total_reinforcers.png
+- phase_comparison_0_30_subj0_84_81_87_78_93_90_75_82_73_88_91_85_76_94_79_95_77_89_92_83_86_80_74_SelfAdmin_total_active_presses.png
+- phase_comparison_0_30_subj0_84_81_87_78_93_90_75_82_73_88_91_85_76_94_79_95_77_89_92_83_86_80_74_SelfAdmin_total_inactive_presses.png
+- phase_comparison_0_30_subj0_84_81_87_78_93_90_75_82_73_88_91_85_76_94_79_95_77_89_92_83_86_80_74_SelfAdmin_total_reinforcers.png
+- phase_comparison_0_60_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin_total_active_presses.png
+- phase_comparison_0_60_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin_total_inactive_presses.png
+- phase_comparison_0_60_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin_total_reinforcers.png
+- response_distribution_0_30_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin_SelfAdmin.png
+- response_distribution_0_60_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin_SelfAdmin.png
+- time_course_0_30_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin.png
+- time_course_0_60_subj0_75_90_84_78_87_93_81_88_85_82_79_91_76_73_94_83_92_80_86_77_95_89_74_SelfAdmin.png
