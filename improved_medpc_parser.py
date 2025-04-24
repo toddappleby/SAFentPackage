@@ -314,7 +314,7 @@ class MedPCDataParser:
             for time, resp in zip(timestamps, responses):
                 bin_idx = int(time // bin_size)
                 if bin_idx < num_bins:
-                    if resp == 2:  # Active lever
+                    if resp == 2 or resp == 21:  # Active lever (including during timeout)
                         active_bins[bin_idx] += 1
                     elif resp == 1:  # Inactive lever
                         inactive_bins[bin_idx] += 1
@@ -375,10 +375,10 @@ class MedPCDataParser:
             responses = responses[:min_length]
             
             for time, resp in zip(timestamps, responses):
-                # Determine response type
+                # Determine response type - MODIFIED to combine codes 2 and 21 as active_lever
                 if resp == 1:
                     response_type = 'inactive_lever'
-                elif resp == 2:
+                elif resp == 2 or resp == 21:  # Combine active lever press (2) and active lever during timeout (21)
                     response_type = 'active_lever'
                 elif resp == 6:
                     response_type = 'reinforced'
@@ -389,7 +389,7 @@ class MedPCDataParser:
                     'subject': subject,
                     'phase': phase,
                     'group': group,
-                    'filename': filename,  # Add filename to each row
+                    'filename': filename,
                     'time_seconds': time,
                     'time_minutes': time / 60,
                     'response_code': resp,
