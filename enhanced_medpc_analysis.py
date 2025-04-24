@@ -404,137 +404,137 @@ class EnhancedMedPCAnalyzer(MedPCAnalyzer):
     
     # Replace the plot_time_segment_data method in enhanced_medpc_analysis.py with this fixed version:
 
-def plot_time_segment_data(self, segment_key, metrics=None, group_by_phase=True):
-    """
-    Plot metrics from a specific time segment analysis.
-    
-    Parameters:
-    -----------
-    segment_key : str
-        Key identifying the time segment (format: "start_end")
-    metrics : list
-        List of metrics to plot. If None, default metrics are used.
-    group_by_phase : bool
-        If True, group by phase for plotting
-    """
-    # Check if segment data exists
-    if segment_key not in self.time_segment_df:
+    def plot_time_segment_data(self, segment_key, metrics=None, group_by_phase=True):
+        """
+        Plot metrics from a specific time segment analysis.
+        
+        Parameters:
+        -----------
+        segment_key : str
+            Key identifying the time segment (format: "start_end")
+        metrics : list
+            List of metrics to plot. If None, default metrics are used.
+        group_by_phase : bool
+            If True, group by phase for plotting
+        """
+        # Check if segment data exists
+        if segment_key not in self.time_segment_df:
+            start_min, end_min = map(int, segment_key.split('_'))
+            segment_df = self.analyze_time_segment(start_min, end_min)
+        else:
+            segment_df = self.time_segment_df[segment_key]
+        
+        # Default metrics
+        if metrics is None:
+            metrics = [
+                'total_active_presses',
+                'total_inactive_presses',
+                'total_reinforcers'
+            ]
+        
+        # Parse segment key to get time range
         start_min, end_min = map(int, segment_key.split('_'))
-        segment_df = self.analyze_time_segment(start_min, end_min)
-    else:
-        segment_df = self.time_segment_df[segment_key]
-    
-    # Default metrics
-    if metrics is None:
-        metrics = [
-            'total_active_presses',
-            'total_inactive_presses',
-            'total_reinforcers'
-        ]
-    
-    # Parse segment key to get time range
-    start_min, end_min = map(int, segment_key.split('_'))
-    time_range = f"{start_min}-{end_min}min"
-    
-    # Get unique subjects and phases
-    subjects = segment_df.select('subject').unique().to_series().to_list()
-    phases = segment_df.select('phase').unique().to_series().to_list()
-    
-    # Plot metrics by phase for each subject
-    for subject in subjects:
-        subject_df = segment_df.filter(pl.col('subject') == subject)
+        time_range = f"{start_min}-{end_min}min"
         
-        if len(subject_df) == 0:
-            continue
+        # Get unique subjects and phases
+        subjects = segment_df.select('subject').unique().to_series().to_list()
+        phases = segment_df.select('phase').unique().to_series().to_list()
         
-        # Create a figure for each metric
-        for metric in metrics:
-            fig, ax = plt.subplots(figsize=(10, 6))
+        # Plot metrics by phase for each subject
+        for subject in subjects:
+            subject_df = segment_df.filter(pl.col('subject') == subject)
             
-            # Prepare for phase grouping or sequential plotting
-            if group_by_phase:
-                # Plot by phase
-                for phase in phases:
-                    phase_df = subject_df.filter(pl.col('phase') == phase)
-                    
-                    if len(phase_df) == 0:
-                        continue
-                    
-                    # Sort by session (use filename to ensure ordering if session_date isn't available)
-                    # First check if session_date column exists
-                    if 'session_date' in phase_df.columns:
+            if len(subject_df) == 0:
+                continue
+            
+            # Create a figure for each metric
+            for metric in metrics:
+                fig, ax = plt.subplots(figsize=(10, 6))
+                
+                # Prepare for phase grouping or sequential plotting
+                if group_by_phase:
+                    # Plot by phase
+                    for phase in phases:
+                        phase_df = subject_df.filter(pl.col('phase') == phase)
+                        
+                        if len(phase_df) == 0:
+                            continue
+                        
+                        # Sort by session (use filename to ensure ordering if session_date isn't available)
+                        # First check if session_date column exists
+                        if 'session_date' in phase_df.columns:
+                            try:
+                                phase_df = phase_df.sort('session_date')
+                            except:
+                                # If sorting fails, try to sort by session/filename
+                                if 'session' in phase_df.columns:
+                                    phase_df = phase_df.sort('session')
+                        elif 'session' in phase_df.columns:
+                            phase_df = phase_df.sort('session')
+                        
+                        # Get values
+                        session_nums = list(range(1, len(phase_df) + 1))
+                        values = phase_df.select(metric).to_series().to_list()
+                        
+                        # Plot
+                        ax.plot(session_nums, values, 'o-', label=phase)
+                        
+                        # Add phase label
+                        if len(values) > 0:
+                            mid_idx = len(values) // 2
+                            if mid_idx < len(values):
+                                y_pos = max(values) * 1.1 if max(values) > 0 else 1
+                                ax.text(session_nums[mid_idx], y_pos, 
+                                    phase, ha='center', fontweight='bold')
+                else:
+                    # Sort all sessions (using session/filename if session_date isn't available)
+                    if 'session_date' in subject_df.columns:
                         try:
-                            phase_df = phase_df.sort('session_date')
+                            subject_df = subject_df.sort('session_date')
                         except:
-                            # If sorting fails, try to sort by session/filename
-                            if 'session' in phase_df.columns:
-                                phase_df = phase_df.sort('session')
-                    elif 'session' in phase_df.columns:
-                        phase_df = phase_df.sort('session')
+                            if 'session' in subject_df.columns:
+                                subject_df = subject_df.sort('session')
+                    elif 'session' in subject_df.columns:
+                        subject_df = subject_df.sort('session')
                     
                     # Get values
-                    session_nums = list(range(1, len(phase_df) + 1))
-                    values = phase_df.select(metric).to_series().to_list()
+                    values = subject_df.select(metric).to_series().to_list()
+                    session_phases = subject_df.select('phase').to_series().to_list()
+                    session_nums = list(range(1, len(values) + 1))
                     
-                    # Plot
-                    ax.plot(session_nums, values, 'o-', label=phase)
+                    # Create a color map for phases
+                    phase_colors = {phase: plt.cm.tab10(i) for i, phase in enumerate(phases)}
                     
-                    # Add phase label
-                    if len(values) > 0:
-                        mid_idx = len(values) // 2
-                        if mid_idx < len(values):
-                            y_pos = max(values) * 1.1 if max(values) > 0 else 1
-                            ax.text(session_nums[mid_idx], y_pos, 
-                                  phase, ha='center', fontweight='bold')
-            else:
-                # Sort all sessions (using session/filename if session_date isn't available)
-                if 'session_date' in subject_df.columns:
-                    try:
-                        subject_df = subject_df.sort('session_date')
-                    except:
-                        if 'session' in subject_df.columns:
-                            subject_df = subject_df.sort('session')
-                elif 'session' in subject_df.columns:
-                    subject_df = subject_df.sort('session')
+                    # Plot with colors by phase
+                    for i, (x, y, phase) in enumerate(zip(session_nums, values, session_phases)):
+                        if i == 0 or (i > 0 and session_phases[i-1] != phase):
+                            ax.plot(x, y, 'o', color=phase_colors[phase], label=phase)
+                        else:
+                            ax.plot(x, y, 'o', color=phase_colors[phase])
+                        
+                        # Connect points with lines
+                        if i > 0:
+                            ax.plot([session_nums[i-1], x], [values[i-1], y], '-', 
+                                color=phase_colors[session_phases[i-1]], alpha=0.7)
                 
-                # Get values
-                values = subject_df.select(metric).to_series().to_list()
-                session_phases = subject_df.select('phase').to_series().to_list()
-                session_nums = list(range(1, len(values) + 1))
+                # Customize plot
+                metric_label = metric.replace('total_', '').replace('_', ' ').title()
+                ax.set_title(f"Subject {subject}: {metric_label} ({time_range})")
+                ax.set_xlabel("Session Number")
+                ax.set_ylabel(metric_label)
+                ax.grid(True, linestyle='--', alpha=0.7)
                 
-                # Create a color map for phases
-                phase_colors = {phase: plt.cm.tab10(i) for i, phase in enumerate(phases)}
+                if not group_by_phase:
+                    ax.legend(title="Phase")
                 
-                # Plot with colors by phase
-                for i, (x, y, phase) in enumerate(zip(session_nums, values, session_phases)):
-                    if i == 0 or (i > 0 and session_phases[i-1] != phase):
-                        ax.plot(x, y, 'o', color=phase_colors[phase], label=phase)
-                    else:
-                        ax.plot(x, y, 'o', color=phase_colors[phase])
-                    
-                    # Connect points with lines
-                    if i > 0:
-                        ax.plot([session_nums[i-1], x], [values[i-1], y], '-', 
-                               color=phase_colors[session_phases[i-1]], alpha=0.7)
-            
-            # Customize plot
-            metric_label = metric.replace('total_', '').replace('_', ' ').title()
-            ax.set_title(f"Subject {subject}: {metric_label} ({time_range})")
-            ax.set_xlabel("Session Number")
-            ax.set_ylabel(metric_label)
-            ax.grid(True, linestyle='--', alpha=0.7)
-            
-            if not group_by_phase:
-                ax.legend(title="Phase")
-            
-            # Save figure
-            metric_name = metric.replace('total_', '')
-            output_path = self.output_dir / f"time_segment_{segment_key}_{metric_name}_{subject}.png"
-            plt.tight_layout()
-            plt.savefig(output_path, dpi=300)
-            plt.close()
-            
-            print(f"Saved time segment plot for subject {subject}, metric {metric_name}")
+                # Save figure
+                metric_name = metric.replace('total_', '')
+                output_path = self.output_dir / f"time_segment_{segment_key}_{metric_name}_{subject}.png"
+                plt.tight_layout()
+                plt.savefig(output_path, dpi=300)
+                plt.close()
+                
+                print(f"Saved time segment plot for subject {subject}, metric {metric_name}")
     
     def plot_time_segment_comparison(self, segment_keys, metric='total_active_presses'):
         """
