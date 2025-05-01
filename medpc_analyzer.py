@@ -253,6 +253,11 @@ class MedPCTimeAnalyzer:
                     total_active = sum(b['active_lever_presses'] for b in bins)
                     total_inactive = sum(b['inactive_lever_presses'] for b in bins)
                     total_reinforcers = sum(b['reinforcers'] for b in bins)
+
+                            # Debug output to check calculations
+                    #print(f"Session: {session}")
+                    print(f"  Active: {total_active}, Inactive: {total_inactivet}")
+                    print(f"  Discrimination Index: {discrimination_index}")
                     
                     # Add segment summary
                     binned_data.append({
@@ -285,6 +290,33 @@ class MedPCTimeAnalyzer:
             print(f"Saved time segment summary to {output_path}")
         
         return segment_summary_df
+
+    def calculate_discrimination_index(self, active_presses, inactive_presses):
+        """
+        Calculate discrimination index: (active - inactive)/(active + inactive)
+        
+        Parameters:
+        -----------
+        active_presses : int or float
+            Number of active lever presses
+        inactive_presses : int or float
+            Number of inactive lever presses
+            
+        Returns:
+        --------
+        float
+            Discrimination index (-1 to 1)
+        """
+        total_presses = active_presses + inactive_presses
+        if total_presses == 0:
+            return 0.0  # Avoid division by zero
+
+        di = (active_presses - inactive_presses) / total_presses
+        print(f"  Calculation: ({active_presses} - {inactive_presses})/({total_presses}) = {di}")
+    
+        #return di
+        
+        return (active_presses - inactive_presses) / total_presses
     
     def analyze_multiple_segments(self, segments=None, subjects=None, phases=None):
         """
@@ -1058,6 +1090,16 @@ class MedPCTimeAnalyzer:
                 'session_number': i + 1,  # Sequential session number
                 'count': count
             })
+
+            discrimination_index = self.calculate_discrimination_index(active_count, inactive_count)
+            session_counts.append({
+                'session': session,
+                'date': date,
+                'session_number': i + 1,
+                'active_count': active_count,
+                'inactive_count': inactive_count,
+                'discrimination_index': discrimination_index  # Add this line   
+                })
         
         # Create DataFrame for plotting
         if not session_counts:
@@ -1317,6 +1359,406 @@ class MedPCTimeAnalyzer:
         
         return fig
 
+    def calculate_discrimination_index(self, active_presses, inactive_presses):
+        """
+        Calculate discrimination index: (active - inactive)/(active + inactive)
+        
+        Parameters:
+        -----------
+        active_presses : int or float
+            Number of active lever presses
+        inactive_presses : int or float
+            Number of inactive lever presses
+            
+        Returns:
+        --------
+        float
+            Discrimination index (-1 to 1)
+        """
+        total_presses = active_presses + inactive_presses
+        if total_presses == 0:
+            return 0.0  # Avoid division by zero
+        
+        return (active_presses - inactive_presses) / total_presses
+
+    def plot_discrimination_index_across_sessions(self, subject, phase, time_bin=(0, 30)):
+        """
+        Plot the discrimination index across sessions for a subject.
+        
+        Parameters:
+        -----------
+        subject : int
+            Subject ID to analyze
+        phase : str
+            Experimental phase to analyze (SelfAdmin, EXT, REI)
+        time_bin : tuple
+            Time bin to analyze in minutes (start, end)
+                
+        Returns:
+        --------
+        matplotlib Figure object
+        """
+        import numpy as np
+        import matplotlib.pyplot as plt
+        import re
+        
+        # Load data if not already loaded
+        if self.event_data is None:
+            if not self.load_all_files():
+                return None
+                
+        # Calculate time bin in seconds
+        start_sec = time_bin[0] * 60
+        end_sec = time_bin[1] * 60
+        
+        # Get all data for this subject
+        subject_all_data = self.event_data.filter(pl.col('subject') == subject)
+        
+        if len(subject_all_data) == 0:
+            print(f"No data found for subject {subject}")
+            return None
+        
+        # Find matching sessions for the specified phase
+        session_files = subject_all_data.select('filename').unique().to_series().to_list()
+        matching_sessions = []
+        
+        for session in session_files:
+            # Get the original file data from the parser
+            file_data = self.parser.parsed_data.get(session, {})
+            if not file_data or 'header' not in file_data:
+                continue
+                
+            # Check the MSN field for phase markers
+            msn = file_data['header'].get('msn', '')
+            phase_found = False
+            
+            # Check different formats of phase markers
+            if phase == 'SelfAdmin' and 'SelfAdmin' in msn and 'EXT' not in msn and 'REI' not in msn:
+                phase_found = True
+            elif phase == 'EXT' and 'EXT' in msn:
+                phase_found = True
+            elif phase == 'REI' and 'REI' in msn:
+                phase_found = True
+                
+            if phase_found:
+                # Extract the date
+                date_match = re.match(r'(\d{4}-\d{2}-\d{2})_', session)
+                if date_match:
+                    date = date_match.group(1)
+                    matching_sessions.append((session, date))
+        
+        if not matching_sessions:
+            print(f"No {phase} sessions found for subject {subject}")
+            return None
+        
+        # Sort sessions by date
+        matching_sessions.sort(key=lambda x: x[1])
+        
+        # Count responses and calculate discrimination index in the time bin for each session
+        session_data = []
+        
+        for i, (session, date) in enumerate(matching_sessions):
+            # Get data for this session
+            session_data_df = subject_all_data.filter(pl.col('filename') == session)
+            
+            # Filter to time bin
+            bin_data = session_data_df.filter(
+                (pl.col('time_seconds') >= start_sec) & 
+                (pl.col('time_seconds') < end_sec)
+            )
+            
+            # Count active lever presses
+            active_count = len(bin_data.filter(pl.col('response_type') == 'active_lever'))
+            
+            # Count inactive lever presses
+            inactive_count = len(bin_data.filter(pl.col('response_type') == 'inactive_lever'))
+            
+            # Calculate discrimination index
+            total_presses = active_count + inactive_count
+            if total_presses > 0:
+                discrimination_index = (active_count - inactive_count) / total_presses
+            else:
+                discrimination_index = 0.0
+            
+            # Debug output to check calculations
+            print(f"Session: {session}")
+            print(f"  Active: {active_count}, Inactive: {inactive_count}")
+            print(f"  Discrimination Index: {discrimination_index}")
+            
+            session_data.append({
+                'session': session,
+                'date': date,
+                'session_number': i + 1,
+                'active_count': active_count,
+                'inactive_count': inactive_count,
+                'discrimination_index': discrimination_index
+            })
+        
+        # Create DataFrame for plotting
+        if not session_data:
+            print(f"No data found for the specified time window")
+            return None
+            
+        counts_df = pl.DataFrame(session_data)
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Plot discrimination index
+        ax.plot(
+            counts_df['session_number'].to_list(), 
+            counts_df['discrimination_index'].to_list(),
+            'o-', 
+            linewidth=2, 
+            markersize=8
+        )
+        
+        # Add data labels
+        for i, row in enumerate(counts_df.iter_rows(named=True)):
+            ax.text(
+                row['session_number'], 
+                row['discrimination_index'] + 0.05,  # Slightly above the point
+                f"{row['discrimination_index']:.2f}",
+                ha='center'
+            )
+        
+        # Customize plot
+        ax.set_title(f"Subject {subject}: Discrimination Index in {time_bin[0]}-{time_bin[1]} min window\nPhase: {phase}")
+        ax.set_xlabel("Session Number")
+        ax.set_ylabel("Discrimination Index\n(active-inactive)/(active+inactive)")
+        ax.set_xticks(counts_df['session_number'].to_list())
+        ax.set_xticklabels(counts_df['date'].to_list(), rotation=45, ha='right')
+        ax.grid(True, linestyle='--', alpha=0.7)
+        
+        # Add reference line at 0
+        ax.axhline(y=0, color='r', linestyle='--', alpha=0.5)
+        
+        # Set y-axis limits (-1 to 1)
+        ax.set_ylim(-1.1, 1.1)
+        
+        # Save figure
+        output_name = f"discrimination_index_{time_bin[0]}_{time_bin[1]}_subject{subject}_{phase}"
+        output_path = self.output_dir / f"{output_name}.png"
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=300)
+        
+        print(f"Saved discrimination index plot to {output_path}")
+        
+        return fig
+
+    def plot_discrimination_index_across_sessions_group(self, subjects, phase, time_bin=(0, 30)):
+        """
+        Plot the mean discrimination index across sessions for a group of subjects.
+        
+        Parameters:
+        -----------
+        subjects : list
+            List of subject IDs to analyze
+        phase : str
+            Experimental phase to analyze (SelfAdmin, EXT, REI)
+        time_bin : tuple
+            Time bin to analyze in minutes (start, end)
+                
+        Returns:
+        --------
+        matplotlib Figure object
+        """
+        # Load data if not already loaded
+        if self.event_data is None:
+            if not self.load_all_files():
+                return None
+                
+        # Calculate time bin in seconds
+        start_sec = time_bin[0] * 60
+        end_sec = time_bin[1] * 60
+        
+        # Check if we have valid subjects
+        all_subjects = self.get_available_subjects()
+        valid_subjects = [s for s in subjects if s in all_subjects]
+        
+        if not valid_subjects:
+            print(f"No valid subjects found in data. Available subjects: {all_subjects}")
+            return None
+        
+        print(f"Analyzing subjects: {valid_subjects}")
+        
+        # Find all sessions for each subject in the specified phase
+        all_sessions = []
+        
+        for subject in valid_subjects:
+            # Get all data for this subject
+            subject_data = self.event_data.filter(pl.col('subject') == subject)
+            
+            if len(subject_data) == 0:
+                print(f"No data found for subject {subject}")
+                continue
+            
+            # Get all sessions for this subject
+            session_files = subject_data.select('filename').unique().to_series().to_list()
+            
+            for session in session_files:
+                # Get the original file data
+                file_data = self.parser.parsed_data.get(session, {})
+                if not file_data or 'header' not in file_data:
+                    continue
+                    
+                # Check the MSN field for phase markers
+                msn = file_data['header'].get('msn', '')
+                phase_found = False
+                
+                # Check different formats of phase markers
+                if phase == 'SelfAdmin' and 'SelfAdmin' in msn and 'EXT' not in msn and 'REI' not in msn:
+                    phase_found = True
+                elif phase == 'EXT' and 'EXT' in msn:
+                    phase_found = True
+                elif phase == 'REI' and 'REI' in msn:
+                    phase_found = True
+                    
+                if phase_found:
+                    # Extract the date
+                    date_match = re.match(r'(\d{4}-\d{2}-\d{2})_', session)
+                    if date_match:
+                        date = date_match.group(1)
+                        all_sessions.append({
+                            'subject': subject,
+                            'session': session,
+                            'date': date
+                        })
+        
+        if not all_sessions:
+            print(f"No {phase} sessions found for any of the specified subjects")
+            return None
+        
+        # Group sessions by date
+        sessions_by_date = {}
+        for session_info in all_sessions:
+            date = session_info['date']
+            if date not in sessions_by_date:
+                sessions_by_date[date] = []
+            sessions_by_date[date].append(session_info)
+        
+        # Sort dates
+        sorted_dates = sorted(sessions_by_date.keys())
+        
+        # Calculate discrimination index for each date
+        date_data = []
+        
+        for i, date in enumerate(sorted_dates):
+            sessions = sessions_by_date[date]
+            subject_data = []
+            
+            for session_info in sessions:
+                subject = session_info['subject']
+                session = session_info['session']
+                
+                # Get data for this session
+                subject_df = self.event_data.filter(pl.col('subject') == subject)
+                session_df = subject_df.filter(pl.col('filename') == session)
+                
+                # Filter to time bin
+                bin_df = session_df.filter(
+                    (pl.col('time_seconds') >= start_sec) & 
+                    (pl.col('time_seconds') < end_sec)
+                )
+                
+                # Count responses
+                active_count = len(bin_df.filter(pl.col('response_type') == 'active_lever'))
+                inactive_count = len(bin_df.filter(pl.col('response_type') == 'inactive_lever'))
+                
+                # Calculate discrimination index
+                discrimination_index = self.calculate_discrimination_index(active_count, inactive_count)
+
+                print(f"Subject {subject}, Session {session}")
+                print(f"  Active: {active_count}, Inactive: {inactive_count}")
+                print(f"  Discrimination Index: {discrimination_index}")
+                
+                subject_data.append({
+                    'subject': subject,
+                    'active_count': active_count,
+                    'inactive_count': inactive_count,
+                    'discrimination_index': discrimination_index
+                })
+            
+            # Calculate mean and SEM for this date
+            indices = [info['discrimination_index'] for info in subject_data]
+            mean_index = np.mean(indices) if indices else 0
+            sem_index = np.std(indices) / np.sqrt(len(indices)) if len(indices) > 1 else 0
+            
+            date_data.append({
+                'date': date,
+                'session_number': i + 1,
+                'mean_index': mean_index,
+                'sem_index': sem_index,
+                'n_subjects': len(subject_data),
+                'subject_data': subject_data
+            })
+        
+        # Create DataFrame for plotting
+        if not date_data:
+            print(f"No data found for the specified time window")
+            return None
+                
+        data_df = pl.DataFrame([
+            {
+                'date': item['date'],
+                'session_number': item['session_number'],
+                'mean_index': item['mean_index'],
+                'sem_index': item['sem_index'],
+                'n_subjects': item['n_subjects']
+            }
+            for item in date_data
+        ])
+        
+
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Plot mean discrimination index with error bars
+        ax.errorbar(
+            data_df['session_number'].to_list(), 
+            data_df['mean_index'].to_list(),
+            yerr=data_df['sem_index'].to_list(),
+            fmt='o-', 
+            linewidth=2, 
+            markersize=8,
+            capsize=5,
+            color='purple'  # Use a distinct color for discrimination index
+        )
+        
+        # Add data labels
+        for i, row in enumerate(data_df.iter_rows(named=True)):
+            ax.text(
+                row['session_number'], 
+                row['mean_index'] + 0.05,  # Slightly above the point
+                f"{row['mean_index']:.2f}",
+                ha='center'
+            )
+        
+        # Customize plot
+        subject_range = f"Subjects {min(valid_subjects)}-{max(valid_subjects)}"
+        ax.set_title(f"{subject_range}: Mean Discrimination Index in {time_bin[0]}-{time_bin[1]} min window\nPhase: {phase} (n={len(valid_subjects)})")
+        ax.set_xlabel("Session Number")
+        ax.set_ylabel("Discrimination Index\n(active-inactive)/(active+inactive) ± SEM")
+        ax.set_xticks(data_df['session_number'].to_list())
+        ax.set_xticklabels(data_df['date'].to_list(), rotation=45, ha='right')
+        ax.grid(True, linestyle='--', alpha=0.7)
+        
+        # Add reference line at 0
+        ax.axhline(y=0, color='r', linestyle='--', alpha=0.5)
+        
+        # Set y-axis limits (-1 to 1)
+        ax.set_ylim(-1.1, 1.1)
+        
+        # Save figure
+        subject_str = f"subjects{min(valid_subjects)}-{max(valid_subjects)}"
+        output_name = f"discrimination_index_{time_bin[0]}_{time_bin[1]}_{subject_str}_{phase}"
+        output_path = self.output_dir / f"{output_name}.png"
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=300)
+        
+        print(f"Saved group discrimination index plot to {output_path}")
+        
+        return fig
+
     def run_comprehensive_analysis(self, segments=None, subjects=None, phases=None):
         """
         Run a comprehensive analysis with multiple time segments and plots.
@@ -1375,3 +1817,180 @@ class MedPCTimeAnalyzer:
         
         print("Comprehensive analysis complete!")
         return report_path
+
+    def export_individual_session_data(self, subjects, phase, time_bins=[(0, 30), (30, 60), (0, 60)]):
+        """Export data organized by session for each subject."""
+        
+        for subject in subjects:
+            subject_data = []
+            for time_bin in time_bins:
+                start_sec, end_sec = time_bin[0] * 60, time_bin[1] * 60
+                
+                # Get sessions for this subject and phase
+                subject_df = self.event_data.filter(pl.col('subject') == subject)
+                sessions = self._get_phase_sessions(subject, phase)
+                
+                for i, (session, date) in enumerate(sessions):
+                    session_df = subject_df.filter(pl.col('filename') == session)
+                    bin_df = session_df.filter(
+                        (pl.col('time_seconds') >= start_sec) & 
+                        (pl.col('time_seconds') < end_sec)
+                    )
+                    
+                    # Count responses
+                    active_count = len(bin_df.filter(pl.col('response_type') == 'active_lever'))
+                    inactive_count = len(bin_df.filter(pl.col('response_type') == 'inactive_lever'))
+                    reinforcer_count = len(bin_df.filter(pl.col('response_type') == 'reinforced'))
+                    
+                    # Calculate discrimination index
+                    di = self.calculate_discrimination_index(active_count, inactive_count)
+                    
+                    # Add to data
+                    subject_data.append({
+                        'subject': subject,
+                        'session_number': i + 1,
+                        'date': date,
+                        'time_window': f"{time_bin[0]}-{time_bin[1]}min",
+                        'active_lever': active_count,
+                        'inactive_lever': inactive_count,
+                        'reinforcers': reinforcer_count,
+                        'discrimination_index': di
+                    })
+            
+            # Save to CSV
+            if subject_data:
+                df = pl.DataFrame(subject_data)
+                output_path = self.output_dir / f"igor_subject{subject}_{phase}_sessions.csv"
+                df.write_csv(output_path)
+                print(f"Exported session data for subject {subject} to {output_path}")
+
+    def export_group_data(self, subjects, phase, time_bins=[(0, 30), (30, 60), (0, 60)]):
+        """Export group-level data organized by date."""
+        
+        for time_bin in time_bins:
+            start_sec, end_sec = time_bin[0] * 60, time_bin[1] * 60
+            
+            # Get all sessions by date
+            all_sessions = self._get_all_phase_sessions(subjects, phase)
+            if not all_sessions:
+                continue
+                
+            # Group sessions by date
+            sessions_by_date = {}
+            for session_info in all_sessions:
+                date = session_info['date']
+                if date not in sessions_by_date:
+                    sessions_by_date[date] = []
+                sessions_by_date[date].append(session_info)
+            
+            # Process each date
+            date_data = []
+            for i, date in enumerate(sorted(sessions_by_date.keys())):
+                sessions = sessions_by_date[date]
+                subject_results = []
+                
+                for session_info in sessions:
+                    subject = session_info['subject']
+                    session = session_info['session']
+                    
+                    # Filter and count responses
+                    subject_df = self.event_data.filter(pl.col('subject') == subject)
+                    session_df = subject_df.filter(pl.col('filename') == session)
+                    bin_df = session_df.filter(
+                        (pl.col('time_seconds') >= start_sec) & 
+                        (pl.col('time_seconds') < end_sec)
+                    )
+                    
+                    active_count = len(bin_df.filter(pl.col('response_type') == 'active_lever'))
+                    inactive_count = len(bin_df.filter(pl.col('response_type') == 'inactive_lever'))
+                    reinforcer_count = len(bin_df.filter(pl.col('response_type') == 'reinforced'))
+                    di = self.calculate_discrimination_index(active_count, inactive_count)
+                    
+                    subject_results.append({
+                        'subject': subject,
+                        'active_lever': active_count,
+                        'inactive_lever': inactive_count,
+                        'reinforcers': reinforcer_count,
+                        'discrimination_index': di
+                    })
+                
+                # Calculate group stats
+                import numpy as np
+                active_values = [r['active_lever'] for r in subject_results]
+                inactive_values = [r['inactive_lever'] for r in subject_results]
+                reinforcer_values = [r['reinforcers'] for r in subject_results]
+                di_values = [r['discrimination_index'] for r in subject_results]
+                
+                date_data.append({
+                    'date': date,
+                    'session_number': i + 1,
+                    'n_subjects': len(subject_results),
+                    'time_window': f"{time_bin[0]}-{time_bin[1]}min",
+                    'active_mean': np.mean(active_values),
+                    'active_sem': np.std(active_values) / np.sqrt(len(active_values)) if len(active_values) > 1 else 0,
+                    'inactive_mean': np.mean(inactive_values),
+                    'inactive_sem': np.std(inactive_values) / np.sqrt(len(inactive_values)) if len(inactive_values) > 1 else 0,
+                    'reinforcers_mean': np.mean(reinforcer_values),
+                    'reinforcers_sem': np.std(reinforcer_values) / np.sqrt(len(reinforcer_values)) if len(reinforcer_values) > 1 else 0,
+                    'di_mean': np.mean(di_values),
+                    'di_sem': np.std(di_values) / np.sqrt(len(di_values)) if len(di_values) > 1 else 0,
+                    'subjects': ','.join(map(str, [r['subject'] for r in subject_results]))
+                })
+            
+            # Save to CSV
+            if date_data:
+                df = pl.DataFrame(date_data)
+                subject_range = f"subjects{min(subjects)}-{max(subjects)}"
+                output_path = self.output_dir / f"igor_group_{subject_range}_{phase}_{time_bin[0]}-{time_bin[1]}min.csv"
+                df.write_csv(output_path)
+                print(f"Exported group data for time window {time_bin[0]}-{time_bin[1]}min to {output_path}")
+
+    def _get_phase_sessions(self, subject, phase):
+        """Get all sessions for a subject in a specific phase."""
+        subject_data = self.event_data.filter(pl.col('subject') == subject)
+        session_files = subject_data.select('filename').unique().to_series().to_list()
+        matching_sessions = []
+        
+        for session in session_files:
+            file_data = self.parser.parsed_data.get(session, {})
+            if not file_data or 'header' not in file_data:
+                continue
+                
+            msn = file_data['header'].get('msn', '')
+            phase_found = False
+            
+            if phase == 'SelfAdmin' and 'SelfAdmin' in msn and 'EXT' not in msn and 'REI' not in msn:
+                phase_found = True
+            elif phase == 'EXT' and 'EXT' in msn:
+                phase_found = True
+            elif phase == 'REI' and 'REI' in msn:
+                phase_found = True
+                
+            if phase_found:
+                date_match = re.match(r'(\d{4}-\d{2}-\d{2})_', session)
+                if date_match:
+                    date = date_match.group(1)
+                    matching_sessions.append((session, date))
+        
+        # Sort sessions by date
+        matching_sessions.sort(key=lambda x: x[1])
+        return matching_sessions
+
+    def _get_all_phase_sessions(self, subjects, phase):
+        """Get all sessions for a group of subjects in a specific phase."""
+        all_sessions = []
+        
+        for subject in subjects:
+            subject_data = self.event_data.filter(pl.col('subject') == subject)
+            if len(subject_data) == 0:
+                continue
+                
+            # Get sessions for this subject
+            for session, date in self._get_phase_sessions(subject, phase):
+                all_sessions.append({
+                    'subject': subject,
+                    'session': session,
+                    'date': date
+                })
+            
+        return all_sessions

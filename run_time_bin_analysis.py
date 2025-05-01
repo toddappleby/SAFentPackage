@@ -43,6 +43,10 @@ def main():
                        help='Generate plots for multiple time bins (0-30, 30-60, 0-60 min)')
     parser.add_argument('--all_response_types', action='store_true',
                        help='Generate plots for all response types')
+    parser.add_argument('--discrimination_index', action='store_true', 
+                       help='Generate discrimination index plots')
+    parser.add_argument('--export_for_igor', action='store_true',
+                       help='Export data in formats optimized for Igor Pro')
     
     # Parse arguments
     args = parser.parse_args()
@@ -87,6 +91,7 @@ def main():
             time_bins = [(0, 30), (30, 60), (0, 60)]
             
             for start, end in time_bins:
+                # Standard response types
                 if args.all_response_types:
                     # Generate plots for all response types
                     for response_type in ['active_lever', 'inactive_lever', 'head_entry']:
@@ -103,6 +108,14 @@ def main():
                         phase=args.phase,
                         time_bin=(start, end),
                         response_type=args.response_type
+                    )
+                
+                # Discrimination index if requested
+                if args.discrimination_index:
+                    analyzer.plot_discrimination_index_across_sessions_group(
+                        subjects=args.subjects,
+                        phase=args.phase,
+                        time_bin=(start, end)
                     )
         else:
             # Generate plot for specific time bin
@@ -122,6 +135,14 @@ def main():
                     phase=args.phase,
                     time_bin=(args.start_min, args.end_min),
                     response_type=args.response_type
+                )
+            
+            # Discrimination index if requested
+            if args.discrimination_index:
+                analyzer.plot_discrimination_index_across_sessions_group(
+                    subjects=args.subjects,
+                    phase=args.phase,
+                    time_bin=(args.start_min, args.end_min)
                 )
     else:
         # Single subject analysis
@@ -148,6 +169,14 @@ def main():
                         time_bin=(start, end),
                         response_type=args.response_type
                     )
+                
+                # Discrimination index if requested
+                if args.discrimination_index:
+                    analyzer.plot_discrimination_index_across_sessions(
+                        subject=subject,
+                        phase=args.phase,
+                        time_bin=(start, end)
+                    )
         else:
             # Generate plot for specific time bin
             if args.all_response_types:
@@ -167,7 +196,31 @@ def main():
                     time_bin=(args.start_min, args.end_min),
                     response_type=args.response_type
                 )
+            
+            # Discrimination index if requested
+            if args.discrimination_index:
+                analyzer.plot_discrimination_index_across_sessions(
+                    subject=subject,
+                    phase=args.phase,
+                    time_bin=(args.start_min, args.end_min)
+                )
+    if args.export_for_igor:
+        print("Exporting data for Igor Pro...")
+        analyzer.export_individual_session_data(
+            subjects=args.subjects,
+            phase=args.phase,
+            time_bins=[(args.start_min, args.end_min)] if not args.all_time_bins 
+                    else [(0, 30), (30, 60), (0, 60)]
+        )
     
+    if len(args.subjects) > 1:
+        analyzer.export_group_data(
+            subjects=args.subjects,
+            phase=args.phase,
+            time_bins=[(args.start_min, args.end_min)] if not args.all_time_bins 
+                      else [(0, 30), (30, 60), (0, 60)]
+        )
+        
     print("\nAnalysis complete!")
 
 if __name__ == "__main__":

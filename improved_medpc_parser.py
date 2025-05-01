@@ -28,7 +28,7 @@ class MedPCDataParser:
         -----------
         pattern : str
             File pattern to match
-            
+                
         Returns:
         --------
         list of Path objects
@@ -36,7 +36,43 @@ class MedPCDataParser:
         if not self.base_dir:
             raise ValueError("Base directory not set")
         
-        self.data_files = list(self.base_dir.glob(pattern))
+        # Look for files starting with !
+        exclamation_files = list(self.base_dir.glob("!*"))
+        
+        # Create a list to store the file paths
+        self.data_files = []
+        
+        # Process each file that starts with !
+        for file_path in exclamation_files:
+            file_name = file_path.name
+            
+            # Check if the file appears to be a MedPC data file
+            if "Subject" in file_name:
+                # Convert format from !YYYY-MM-DD_HHhMMm.Subject XX to 
+                # YYYY-MM-DD_HHhMMm_Subject XX.txt
+                new_name = file_name[1:]  # Remove the ! 
+                new_name = new_name.replace(".", "_") + ".txt"
+                
+                # Create or use a temporary directory for processed files
+                temp_dir = self.base_dir / "temp_processed"
+                temp_dir.mkdir(exist_ok=True)
+                
+                # Create a new path for the renamed file
+                new_path = temp_dir / new_name
+                
+                # Copy the file content (don't modify the original)
+                with open(file_path, 'r') as src_file:
+                    content = src_file.read()
+                    with open(new_path, 'w') as dest_file:
+                        dest_file.write(content)
+                
+                self.data_files.append(new_path)
+                print(f"Preprocessed {file_path.name} -> {new_path.name}")
+    
+        # If no exclamation mark files found, try the original pattern
+        if not self.data_files:
+            self.data_files = list(self.base_dir.glob(pattern))
+            
         return self.data_files
     
     def parse_file(self, file_path):
@@ -316,7 +352,7 @@ class MedPCDataParser:
                 if bin_idx < num_bins:
                     if resp == 2 or resp == 21:  # Active lever (including during timeout)
                         active_bins[bin_idx] += 1
-                    elif resp == 1:  # Inactive lever
+                    elif resp == 1 or resp == 20 or resp == 23:  # Inactive lever
                         inactive_bins[bin_idx] += 1
             
             # Create a row for each time bin
@@ -376,9 +412,9 @@ class MedPCDataParser:
             
             for time, resp in zip(timestamps, responses):
                 # Determine response type - MODIFIED to combine codes 2 and 21 as active_lever
-                if resp == 1:
+                if resp == 1 or resp == 20 or resp == 23 :
                     response_type = 'inactive_lever'
-                elif resp == 2 or resp == 21:  # Combine active lever press (2) and active lever during timeout (21)
+                elif resp == 2 or resp == 21 :  # Combine active lever press (2) and active lever during timeout (21)
                     response_type = 'active_lever'
                 elif resp == 6:
                     response_type = 'reinforced'
