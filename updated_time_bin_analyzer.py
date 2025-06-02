@@ -493,7 +493,7 @@ class EnhancedMedPCTimeAnalyzer:
     
     def export_for_igor(self, subjects, phase, time_bins):
         """
-        Export data in Igor Pro-friendly format.
+        Export data in Igor Pro-friendly format (both individual and group data).
         """
         for time_bin in time_bins:
             start_min, end_min = time_bin
@@ -519,6 +519,7 @@ class EnhancedMedPCTimeAnalyzer:
                     active_count = len(window_data.filter(pl.col('response_type') == 'active_lever'))
                     inactive_count = len(window_data.filter(pl.col('response_type') == 'inactive_lever'))
                     head_entry_count = len(window_data.filter(pl.col('response_type') == 'head_entry'))
+                    reinforcer_count = len(window_data.filter(pl.col('response_type') == 'reinforced'))
                     
                     # Calculate discrimination index
                     total_presses = active_count + inactive_count
@@ -532,6 +533,7 @@ class EnhancedMedPCTimeAnalyzer:
                         'active_lever': active_count,
                         'inactive_lever': inactive_count,
                         'head_entries': head_entry_count,
+                        'reinforcers': reinforcer_count,
                         'discrimination_index': di
                     })
                 
@@ -541,6 +543,185 @@ class EnhancedMedPCTimeAnalyzer:
                     output_path = self.output_dir / f"igor_subject{subject}_{phase}_{start_min}-{end_min}min.csv"
                     df.write_csv(output_path)
                     print(f"Exported Igor data for subject {subject}: {output_path}")
+            
+            # Group data export (mean and SEM for each session)
+            self.export_group_data_for_igor(subjects, phase, time_bin)
+    
+    def export_group_data_for_igor(self, subjects, phase, time_bin):
+        """
+        Export group-level data with means and SEMs for each session date.
+        """
+        start_min, end_min = time_bin
+        start_sec = start_min * 60
+        end_sec = end_min * 60
+        
+        # Get all sessions for all subjects
+        all_sessions = []
+        for subject in subjects:
+            sessions = self._get_phase_sessions(subject, phase)
+            for session, date in sessions:
+                all_sessions.append({
+                    'subject': subject,
+                    'session': session,
+                    'date': date
+                })
+        
+        if not all_sessions:
+            print(f"No {phase} sessions found for group analysis")
+            return
+        
+        # Group sessions by date
+        sessions_by_date = {}
+        for session_info in all_sessions:
+            date = session_info['date']
+            if date not in sessions_by_date:
+                sessions_by_date[date] = []
+            sessions_by_date[date].append(session_info)
+        
+        # Calculate group statistics for each date
+        group_data = []
+        
+        for i, date in enumerate(sorted(sessions_by_date.keys())):
+            sessions = sessions_by_date[date]
+            
+            # Collect data from all subjects for this date
+            active_values = []
+            inactive_values = []
+            head_entry_values = []
+            reinforcer_values = []
+            di_values = []
+            subject_list = []
+            
+            for session_info in sessions:
+                subject = session_info['subject']
+                session = session_info['session']
+                
+                # Get data for this session in the time window
+                window_data = self.event_data.filter(
+                    (pl.col('subject_original') == subject) & 
+                    (pl.col('phase') == phase) & 
+                    (pl.col('filename') == session) &
+                    (pl.col('time_seconds') >= start_sec) & 
+                    (pl.col('time_seconds') < end_sec)
+                )
+                
+                # Count responses
+                active_count = len(window_data.filter(pl.col('response_type') == 'active_lever'))
+                inactive_count = len(window_data.filter(pl.col('response_type') == 'inactive_lever'))
+                head_entry_count = len(window_data.filter(pl.col('response_type') == 'head_entry'))
+                reinforcer_count = len(window_data.filter(pl.col('response_type') == 'reinforced'))
+                
+                # Calculate discrimination index
+                total_presses = active_count + inactive_count
+                di = (active_count - inactive_count) / total_presses if total_presses > 0 else 0.0
+                
+                # Store values
+                active_values.append(active_count)
+                inactive_values.append(inactive_count)
+                head_entry_values.append(head_entry_count)
+                reinforcer_values.append(reinforcer_count)
+                di_values.append(di)
+                subject_list.append(subject)
+            
+            # Calculate group statistics
+            n_subjects = len(active_values)
+            
+            if n_subjects > 0:
+                # Means
+                active_mean = np.mean(active_values)
+                inactive_mean = np.mean(inactive_values)
+                head_entry_mean = np.mean(head_entry_values)
+                reinforcer_mean = np.mean(reinforcer_values)
+                di_mean = np.mean(di_values)
+                
+                # SEMs
+                active_sem = np.std(active_values) / np.sqrt(n_subjects) if n_subjects > 1 else 0
+                inactive_sem = np.std(inactive_values) / np.sqrt(n_subjects) if n_subjects > 1 else 0
+                head_entry_sem = np.std(head_entry_values) / np.sqrt(n_subjects) if n_subjects > 1 else 0
+                reinforcer_sem = np.std(reinforcer_values) / np.sqrt(n_subjects) if n_subjects > 1 else 0
+                di_sem = np.std(di_values) / np.sqrt(n_subjects) if n_subjects > 1 else 0
+                
+                # Standard deviations
+                active_std = np.std(active_values)
+                inactive_std = np.std(inactive_values)
+                head_entry_std = np.std(head_entry_values)
+                reinforcer_std = np.std(reinforcer_values)
+                di_std = np.std(di_values)
+                
+                group_data.append({
+                    'date': date,
+                    'session_number': i + 1,
+                    'time_window': f"{start_min}-{end_min}min",
+                    'n_subjects': n_subjects,
+                    'subjects': ','.join(subject_list),
+                    
+                    # Active lever
+                    'active_mean': active_mean,
+                    'active_sem': active_sem,
+                    'active_std': active_std,
+                    
+                    # Inactive lever
+                    'inactive_mean': inactive_mean,
+                    'inactive_sem': inactive_sem,
+                    'inactive_std': inactive_std,
+                    
+                    # Head entries
+                    'head_entry_mean': head_entry_mean,
+                    'head_entry_sem': head_entry_sem,
+                    'head_entry_std': head_entry_std,
+                    
+                    # Reinforcers
+                    'reinforcer_mean': reinforcer_mean,
+                    'reinforcer_sem': reinforcer_sem,
+                    'reinforcer_std': reinforcer_std,
+                    
+                    # Discrimination index
+                    'di_mean': di_mean,
+                    'di_sem': di_sem,
+                    'di_std': di_std,
+                    
+                    # Individual values (for reference)
+                    'active_values': ';'.join(map(str, active_values)),
+                    'inactive_values': ';'.join(map(str, inactive_values)),
+                    'head_entry_values': ';'.join(map(str, head_entry_values)),
+                    'reinforcer_values': ';'.join(map(str, reinforcer_values)),
+                    'di_values': ';'.join(map(str, [f"{di:.3f}" for di in di_values]))
+                })
+        
+        # Save group data
+        if group_data:
+            df = pl.DataFrame(group_data)
+            
+            # Create subject range string for filename
+            subject_str = f"subjects{'-'.join(subjects)}" if len(subjects) <= 3 else f"subjects{subjects[0]}-{subjects[-1]}"
+            
+            output_path = self.output_dir / f"igor_group_{subject_str}_{phase}_{start_min}-{end_min}min.csv"
+            df.write_csv(output_path)
+            print(f"Exported Igor group data: {output_path}")
+            
+            # Also create a simplified version for easier Igor import
+            simplified_data = []
+            for row in group_data:
+                simplified_data.append({
+                    'session': row['session_number'],
+                    'date': row['date'],
+                    'active_mean': row['active_mean'],
+                    'active_sem': row['active_sem'],
+                    'inactive_mean': row['inactive_mean'],
+                    'inactive_sem': row['inactive_sem'],
+                    'head_entry_mean': row['head_entry_mean'],
+                    'head_entry_sem': row['head_entry_sem'],
+                    'di_mean': row['di_mean'],
+                    'di_sem': row['di_sem'],
+                    'n_subjects': row['n_subjects']
+                })
+            
+            simple_df = pl.DataFrame(simplified_data)
+            simple_output_path = self.output_dir / f"igor_group_simple_{subject_str}_{phase}_{start_min}-{end_min}min.csv"
+            simple_df.write_csv(simple_output_path)
+            print(f"Exported simplified Igor group data: {simple_output_path}")
+        
+        return group_data
 
 
 def main():
